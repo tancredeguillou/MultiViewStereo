@@ -5,10 +5,26 @@ from PIL import Image
 
 def read_cam_file(filename):
     # TODO
-    return intrinsics, extrinsics, depth_min, depth_max
+    extrinsics = np.zeros((4, 4))
+    intrinsics = np.zeros((3, 3))
+    depth = np.zeros(2)
+
+    fh = open(filename,'r')
+    for i, line in enumerate(fh):
+        if 0 < i and i < 5:
+            extrinsics[i - 1] = line.split(' ')[:-1]
+        if 6 < i and i < 10:
+            intrinsics[i - 7] = line.split(' ')[:-1]
+        if 10 < i and i < 12:
+            depth = line.split(' ')
+    fh.close()
+    
+    return intrinsics, extrinsics, depth[0], depth[1]
 
 def read_img(filename):
     # TODO
+    np_img = Image.open(filename)
+    np_img = Image.eval(np_img, (lambda x: x / 255.0))
     return np_img
 
 def read_depth(filename):
@@ -81,3 +97,11 @@ def save_pfm(filename, image, scale=1):
 
     image.tofile(file)
     file.close()
+
+
+def main():
+    intrinsics, extrinsics, depth_min, depth_max = read_cam_file("/Users/tancrede/Desktop/eth/first/cv/a4/codes/mvs/dtu_dataset/scan2/cams/00000000_cam.txt")
+    print(intrinsics, extrinsics, depth_min, depth_max)
+
+if __name__ == '__main__':
+	main()
