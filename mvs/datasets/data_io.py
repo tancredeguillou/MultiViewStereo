@@ -19,12 +19,12 @@ def read_cam_file(filename):
             depth = line.split(' ')
     fh.close()
     
-    return intrinsics, extrinsics, depth[0], depth[1]
+    return intrinsics, extrinsics, float(depth[0]), float(depth[1])
 
 def read_img(filename):
     # TODO
-    np_img = Image.open(filename)
-    np_img = Image.eval(np_img, (lambda x: x / 255.0))
+    img = Image.open(filename)
+    np_img = np.array(img, dtype=np.float32) / 255.0
     return np_img
 
 def read_depth(filename):

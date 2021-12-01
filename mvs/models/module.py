@@ -11,7 +11,7 @@ class FeatureNet(nn.Module):
         input_size = 3 # initial number of input channels
         output_sizes = [8, 8, 16, 16, 16, 32, 32, 32]
         kernel_sizes = [3, 3, 5, 3, 3, 5, 3, 3]
-        strides = [1, 1, 2, 1, 1, 2, 1]
+        strides = [1, 1, 2, 1, 1, 2, 1, 1]
         layers_conv = [nn.Conv2d(input_size if i==0 else output_sizes[i-1],
             output_sizes[i], kernel_size=kernel_sizes[i],
             stride=strides[i]) for i in range(self.num_layers)]
@@ -51,7 +51,7 @@ class SimlarityRegNet(nn.Module):
         layers_conv = [nn.Conv2d(input_size if i==0 else output_sizes[i-1],
             output_sizes[i], kernel_size=kernel_sizes[i],
             stride=strides[i]) for i in range(self.num_conv_layers)]
-        layers_transpose = [nn.ConvTranspose2d(output_sizes[i-1],
+        layers_transpose = [nn.ConvTranspose2d(output_sizes[i-1] if i == self.num_conv_layers else output_sizes[i-1]+output_sizes[i-3],
             output_sizes[i], kernel_size=kernel_sizes[i],
             stride=strides[i]) for i in range(self.num_conv_layers, self.num_total_layers)]
 
@@ -61,7 +61,7 @@ class SimlarityRegNet(nn.Module):
         self.relu = nn.ReLU(True)
 
         self.final_layer = nn.Sequential(
-            nn.Conv2d(output_sizes[-1], 1, 3)
+            nn.Conv2d(output_sizes[-1] + output_sizes[0], 1, 3)
         )
 
     def forward(self, x):
@@ -71,15 +71,15 @@ class SimlarityRegNet(nn.Module):
         B,G,D,H,W = x.size()
         x = x.transpose(1, 2).reshape(B*D, G, H, W)
 
-        for i in range(self.num_conv_layers):
-            x = self.layers_conv[i](x)
-            x = self.relu(x)
+        c0 = self.relu(self.layers_conv[0](x))
+        c1 = self.relu(self.layers_conv[1](c0))
+        c2 = self.relu(self.layers_conv[2](c1))
 
-        for i in range(self.num_transpose_layers):
-            x = self.layers_transpose[i](x)
+        c3 = self.layers_transpose[0](c2)
+        c4 = self.layers_transpose[1](c3 + c1)
 
-        out = self.final_layer(x)
-        return out
+        out = self.final_layer(c4 + c0)
+        return out.view(B, D, H, W)
 
 
 def warping(src_fea, src_proj, ref_proj, depth_values):
@@ -102,11 +102,11 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         # TODO
         # The 2D coordinates for each pixels are x and y
         # We need to lift this with the depth values
-        ref_3D = torch.stack(x, y, torch.ones_like(y))  # [3, H*W]
+        ref_3D = torch.stack((x, y, torch.ones_like(y)))  # [3, H*W]
         # Repeat the size to have B tensors of ref_3D
         ref_3D = torch.unsqueeze(ref_3D, 0).repeat(B, 1, 1) # [B, 3, H*W]
         # Apply the rotation to ref_3D
-        rot_ref_3D = (rot @ ref_3D).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
+        rot_ref_3D = torch.matmul(rot, ref_3D.double()).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
         # Expand depth_values to multiply it with rot_ref_3D
         exp_depth_values = depth_values.unsqueeze(2).repeat(1, 1, H * W).view(B, 1, D, H * W)
         # Multiply with the depth values
@@ -118,7 +118,7 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         # We need to normalize x and y values over height and width
         trans_x_norm = trans_ref_2D[:, 0, :, :] / ((W - 1) / 2) - 1     # [B, D, H*W]
         trans_y_norm = trans_ref_2D[:, 1, :, :] / ((H - 1) / 2) - 1     # [B, D, H*W]
-        norm_2D = torch.stack(trans_x_norm, trans_y_norm, dim=3)    # [B, D, H*W, 2]
+        norm_2D = torch.stack((trans_x_norm, trans_y_norm), dim=3).float()   # [B, D, H*W, 2]
 
     # get warped_src_fea with bilinear interpolation (use 'grid_sample' function from pytorch)
     # TODO
