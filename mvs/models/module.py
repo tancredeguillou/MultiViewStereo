@@ -107,7 +107,7 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         # Repeat the size to have B tensors of ref_3D
         ref_3D = torch.unsqueeze(ref_3D, 0).repeat(B, 1, 1) # [B, 3, H*W]
         # Apply the rotation to ref_3D
-        rot_ref_3D = torch.matmul(rot, ref_3D.double()).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
+        rot_ref_3D = torch.matmul(rot.float(), ref_3D).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
         # Expand depth_values to multiply it with rot_ref_3D
         exp_depth_values = depth_values.unsqueeze(2).repeat(1, 1, H * W).view(B, 1, D, H * W)
         # Multiply with the depth values
@@ -151,9 +151,10 @@ def mvs_loss(depth_est, depth_gt, mask):
     # mask: [B,1,H,W]
     # TODO
     #mask_est = depth_est[mask]
-    print("ground truth", depth_gt.size())
-    print("mask", mask.size())
-    print("maskbool", mask.bool().size())
+    #print("est", depth_est.size())
+    print("ground truth", depth_gt.flatten().size())
+    #print("mask", mask.size())
+    #print("maskbool", mask.bool().size())
     mask_gt = depth_gt[mask.bool()]
     print("masked_ground truth", mask_gt.size())
     print("depth_est", depth_est.flatten().size())
