@@ -50,10 +50,10 @@ class SimlarityRegNet(nn.Module):
         strides = [1, 2, 2, 2, 2]
         layers_conv = [nn.Conv2d(input_size if i==0 else output_sizes[i-1],
             output_sizes[i], kernel_size=kernel_sizes[i],
-            stride=strides[i]) for i in range(self.num_conv_layers)]
-        layers_transpose = [nn.ConvTranspose2d(output_sizes[i-1] if i == self.num_conv_layers else output_sizes[i-1]+output_sizes[i-3],
+            stride=strides[i], padding=1) for i in range(self.num_conv_layers)]
+        layers_transpose = [nn.ConvTranspose2d(output_sizes[i-1],
             output_sizes[i], kernel_size=kernel_sizes[i],
-            stride=strides[i]) for i in range(self.num_conv_layers, self.num_total_layers)]
+            stride=strides[i], padding=1, output_padding=1) for i in range(self.num_conv_layers, self.num_total_layers)]
 
         self.layers_conv = nn.ModuleList(layers_conv)
         self.layers_transpose = nn.ModuleList(layers_transpose)
@@ -61,7 +61,7 @@ class SimlarityRegNet(nn.Module):
         self.relu = nn.ReLU(True)
 
         self.final_layer = nn.Sequential(
-            nn.Conv2d(output_sizes[-1] + output_sizes[0], 1, 3)
+            nn.Conv2d(output_sizes[-1], 1, 3, padding=1)
         )
 
     def forward(self, x):
@@ -96,7 +96,8 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         proj = torch.matmul(src_proj, torch.inverse(ref_proj))
         rot = proj[:, :3, :3]  # [B,3,3]
         trans = proj[:, :3, 3:4]  # [B,3,1]
-        y, x = torch.meshgrid([torch.arange(0, H, dtype=torch.float32, device=src_fea.device), torch.arange(0, W, dtype=torch.float32, device=src_fea.device)])
+        y, x = torch.meshgrid([torch.arange(0, H, dtype=torch.float32, device=src_fea.device),
+                                torch.arange(0, W, dtype=torch.float32, device=src_fea.device)])
         y, x = y.contiguous(), x.contiguous()
         y, x = y.view(H * W), x.view(H * W)
         # TODO
@@ -122,8 +123,7 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
 
     # get warped_src_fea with bilinear interpolation (use 'grid_sample' function from pytorch)
     # TODO
-    warped_src_fea = F.grid_sample(src_fea, norm_2D.view(B, D * H, W, 2))
-
+    warped_src_fea = F.grid_sample(src_fea, norm_2D.view(B, D * H, W, 2), align_corners=False)
     return warped_src_fea.view(B, C, D, H, W)
 
 def group_wise_correlation(ref_fea, warped_src_fea, G):
@@ -141,15 +141,20 @@ def depth_regression(p, depth_values):
     # depth_values: discrete depth values [B, D]
     # TODO
     # We sum over the D dimension i.e dim=1
-    B,D = depth_values.size()
-    sum = torch.sum(depth_values.view((B, 1, 1)) * p, dim=1) # [B, H, W]
-    return sum.unsqueeze(1) # [B, 1, H, W]
+    B,D,H,W = p.size()
+    sum = torch.sum(p * depth_values.view((B, D, 1, 1)), dim=1) # [B, H, W]
+    return sum
 
 def mvs_loss(depth_est, depth_gt, mask):
     # depth_est: [B,1,H,W]
     # depth_gt: [B,1,H,W]
     # mask: [B,1,H,W]
     # TODO
-    mask_est = depth_est[mask]
-    mask_gt = depth_gt[mask]
-    return F.l1_loss(mask_est, mask_gt)
+    #mask_est = depth_est[mask]
+    print("ground truth", depth_gt.size())
+    print("mask", mask.size())
+    print("maskbool", mask.bool().size())
+    mask_gt = depth_gt[mask.bool()]
+    print("masked_ground truth", mask_gt.size())
+    print("depth_est", depth_est.flatten().size())
+    return F.l1_loss(depth_est, mask_gt)
