@@ -29,6 +29,8 @@ class FeatureNet(nn.Module):
     def forward(self, x):
         # x: [B,3,H,W]
         # TODO
+        _, _, H, W = x.size()
+        print(f"H, W (inpout FeatureNet)= {H},{W}")
         for i in range(self.num_layers):
             x = self.layers_conv[i](x)
             x = self.layers_bn[i](x)
@@ -71,6 +73,8 @@ class SimlarityRegNet(nn.Module):
         B,G,D,H,W = x.size()
         x = x.transpose(1, 2).reshape(B*D, G, H, W)
 
+        print(f"x_size = {x.shape}")
+
         c0 = self.relu(self.layers_conv[0](x))
         c1 = self.relu(self.layers_conv[1](c0))
         c2 = self.relu(self.layers_conv[2](c1))
@@ -89,6 +93,7 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
     # depth_values: [B, D]
     # out: [B, C, D, H, W]
     B,C,H,W = src_fea.size()
+    print(f"H, W (in warping)= {H},{W}")
     D = depth_values.size(1)
     # compute the warped positions with depth values
     with torch.no_grad():
@@ -130,9 +135,13 @@ def group_wise_correlation(ref_fea, warped_src_fea, G):
     # ref_fea: [B,C,H,W]
     # warped_src_fea: [B,C,D,H,W]
     # out: [B,G,D,H,W]
+
     B,C,D,H,W = warped_src_fea.size()
+    print(f"B, G, D, H, W = {B},{C},{D},{H},{W}" )
     div_ref = ref_fea.view(B, G, C // G, 1, H, W) # [B, G, C//G, 1, H, W]
     div_warped = warped_src_fea.view(B, G, C // G, D, H, W) # [B, G, C//G, D, H, W]
+
+
     return (div_warped * div_ref).mean(2) # [B, G, D, H, W]
 
 

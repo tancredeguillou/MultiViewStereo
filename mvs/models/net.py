@@ -38,6 +38,7 @@ class Net(nn.Module):
         # aggregate matching similarity from all the source views by averaging
         similarity_sum = similarity_sum.div_(V)
 
+        print(f"similarity_sum = {similarity_sum.shape}")
         # regularization
         similarity_reg = self.similarity_regularization(similarity_sum)
         prob_volume = F.softmax(similarity_reg, dim=1)
