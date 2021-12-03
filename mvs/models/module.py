@@ -6,7 +6,6 @@ import torch.nn.functional as F
 class FeatureNet(nn.Module):
     def __init__(self):
         super(FeatureNet, self).__init__()
-        # TODO
         self.num_layers = 8
         input_size = 3 # initial number of input channels
         output_sizes = [8, 8, 16, 16, 16, 32, 32, 32]
@@ -28,7 +27,6 @@ class FeatureNet(nn.Module):
 
     def forward(self, x):
         # x: [B,3,H,W]
-        # TODO
         for i in range(self.num_layers):
             x = self.layers_conv[i](x)
             x = self.layers_bn[i](x)
@@ -40,7 +38,6 @@ class FeatureNet(nn.Module):
 class SimlarityRegNet(nn.Module):
     def __init__(self, G):
         super(SimlarityRegNet, self).__init__()
-        # TODO
         self.num_conv_layers = 3
         self.num_transpose_layers = 2
         self.num_total_layers = self.num_conv_layers + self.num_transpose_layers
@@ -67,7 +64,6 @@ class SimlarityRegNet(nn.Module):
     def forward(self, x):
         # x: [B,G,D,H,W]
         # out: [B,D,H,W]
-        # TODO
         B,G,D,H,W = x.size()
         
         x = x.transpose(1, 2).reshape(B*D, G, H, W)
@@ -101,7 +97,6 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
                                 torch.arange(0, W, dtype=torch.float32, device=src_fea.device)])
         y, x = y.contiguous(), x.contiguous()
         y, x = y.view(H * W), x.view(H * W)
-        # TODO
         # The 2D coordinates for each pixels are x and y
         # We need to lift this with the depth values
         ref_3D = torch.stack((x, y, torch.ones_like(y)))  # [3, H*W]
@@ -123,7 +118,6 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         norm_2D = torch.stack((trans_x_norm, trans_y_norm), dim=3).float()   # [B, D, H*W, 2]
 
     # get warped_src_fea with bilinear interpolation (use 'grid_sample' function from pytorch)
-    # TODO
     warped_src_fea = F.grid_sample(src_fea, norm_2D.view(B, D * H, W, 2), align_corners=False)
     return warped_src_fea.view(B, C, D, H, W)
 
@@ -140,7 +134,6 @@ def group_wise_correlation(ref_fea, warped_src_fea, G):
 def depth_regression(p, depth_values):
     # p: probability volume [B, D, H, W]
     # depth_values: discrete depth values [B, D]
-    # TODO
     # We sum over the D dimension i.e dim=1
     B,D = depth_values.size()
     sum = torch.sum(p * depth_values.view((B, D, 1, 1)), dim=1) # [B, H, W]
@@ -150,6 +143,5 @@ def mvs_loss(depth_est, depth_gt, mask):
     # depth_est: [B,1,H,W]
     # depth_gt: [B,1,H,W]
     # mask: [B,1,H,W]
-    # TODO
     bool_mask = mask.bool()
     return F.l1_loss(depth_est[bool_mask], depth_gt[bool_mask])
