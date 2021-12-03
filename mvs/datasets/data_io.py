@@ -4,7 +4,6 @@ import sys
 from PIL import Image
 
 def read_cam_file(filename):
-    # TODO
     extrinsics = np.zeros((4, 4))
     intrinsics = np.zeros((3, 3))
     depth = np.zeros(2)
@@ -22,7 +21,6 @@ def read_cam_file(filename):
     return intrinsics, extrinsics, float(depth[0]), float(depth[1])
 
 def read_img(filename):
-    # TODO
     img = Image.open(filename)
     np_img = np.array(img, dtype=np.float32) / 255.0
     return np_img

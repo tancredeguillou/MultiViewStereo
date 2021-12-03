@@ -36,6 +36,7 @@ class FeatureNet(nn.Module):
             x = self.layers_bn[i](x)
             x = self.relu(x)
         out = self.final_layer(x)
+        print("XXXXXXXXXoouououttt", out.size())
         return out
 
 
@@ -71,6 +72,7 @@ class SimlarityRegNet(nn.Module):
         # out: [B,D,H,W]
         # TODO
         B,G,D,H,W = x.size()
+        print("innnnn", x.size())
         x = x.transpose(1, 2).reshape(B*D, G, H, W)
 
         print(f"x_size = {x.shape}")
@@ -83,6 +85,7 @@ class SimlarityRegNet(nn.Module):
         c4 = self.layers_transpose[1](c3 + c1)
 
         out = self.final_layer(c4 + c0)
+        print("outttt", out.view(B, D, H, W).size())
         return out.view(B, D, H, W)
 
 
@@ -112,7 +115,7 @@ def warping(src_fea, src_proj, ref_proj, depth_values):
         # Repeat the size to have B tensors of ref_3D
         ref_3D = torch.unsqueeze(ref_3D, 0).repeat(B, 1, 1) # [B, 3, H*W]
         # Apply the rotation to ref_3D
-        rot_ref_3D = torch.matmul(rot, ref_3D.double()).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
+        rot_ref_3D = torch.matmul(rot.float(), ref_3D).unsqueeze(2).repeat(1, 1, D, 1) # [B, 3, D, H*W]
         # Expand depth_values to multiply it with rot_ref_3D
         exp_depth_values = depth_values.unsqueeze(2).repeat(1, 1, H * W).view(B, 1, D, H * W)
         # Multiply with the depth values
@@ -150,7 +153,7 @@ def depth_regression(p, depth_values):
     # depth_values: discrete depth values [B, D]
     # TODO
     # We sum over the D dimension i.e dim=1
-    B,D,H,W = p.size()
+    B,D = depth_values.size()
     sum = torch.sum(p * depth_values.view((B, D, 1, 1)), dim=1) # [B, H, W]
     return sum
 
@@ -160,10 +163,17 @@ def mvs_loss(depth_est, depth_gt, mask):
     # mask: [B,1,H,W]
     # TODO
     #mask_est = depth_est[mask]
-    print("ground truth", depth_gt.size())
-    print("mask", mask.size())
-    print("maskbool", mask.bool().size())
+    #print("est", depth_est.size())
+    #print("HHHH&www", depth_est.size())
+    #print("AUTEREEE", depth_gt.size(), mask.size())
+    #print("ground truth", depth_gt.flatten().size())
+    #print("mask", mask.size())
+    #print("maskbool", mask.bool().size())
+    maskgt = mask > 0.5
+    #print("whyyyyynoooot",mask.size())
     mask_gt = depth_gt[mask.bool()]
-    print("masked_ground truth", mask_gt.size())
-    print("depth_est", depth_est.flatten().size())
+    mask2 = depth_gt[maskgt]
+    #print("masked_ground truth", mask_gt.size())
+    #print("masked_ground truth 2222222222222", mask2.size())
+    #print("depth_est", depth_est.flatten().size())
     return F.l1_loss(depth_est, mask_gt)
