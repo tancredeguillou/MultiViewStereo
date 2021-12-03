@@ -14,7 +14,7 @@ class FeatureNet(nn.Module):
         strides = [1, 1, 2, 1, 1, 2, 1, 1]
         layers_conv = [nn.Conv2d(input_size if i==0 else output_sizes[i-1],
             output_sizes[i], kernel_size=kernel_sizes[i],
-            stride=strides[i]) for i in range(self.num_layers)]
+            stride=strides[i], padding=1 if strides[i]==1 else 2) for i in range(self.num_layers)]
         layers_bn = [nn.BatchNorm2d(output_sizes[i]) for i in range(self.num_layers)]
 
         self.layers_conv = nn.ModuleList(layers_conv)
@@ -23,7 +23,7 @@ class FeatureNet(nn.Module):
         self.relu = nn.ReLU(True)
 
         self.final_layer = nn.Sequential(
-            nn.Conv2d(output_sizes[-1], 32, 3)
+            nn.Conv2d(output_sizes[-1], 32, 3, padding=1)
         )
 
     def forward(self, x):
@@ -34,7 +34,6 @@ class FeatureNet(nn.Module):
             x = self.layers_bn[i](x)
             x = self.relu(x)
         out = self.final_layer(x)
-        print("XXXXXXXXXoouououttt", out.size())
         return out
 
 
@@ -70,7 +69,7 @@ class SimlarityRegNet(nn.Module):
         # out: [B,D,H,W]
         # TODO
         B,G,D,H,W = x.size()
-        print("innnnn", x.size())
+        
         x = x.transpose(1, 2).reshape(B*D, G, H, W)
 
         c0 = self.relu(self.layers_conv[0](x))
@@ -81,7 +80,6 @@ class SimlarityRegNet(nn.Module):
         c4 = self.layers_transpose[1](c3 + c1)
 
         out = self.final_layer(c4 + c0)
-        print("outttt", out.view(B, D, H, W).size())
         return out.view(B, D, H, W)
 
 
@@ -153,18 +151,5 @@ def mvs_loss(depth_est, depth_gt, mask):
     # depth_gt: [B,1,H,W]
     # mask: [B,1,H,W]
     # TODO
-    #mask_est = depth_est[mask]
-    #print("est", depth_est.size())
-    #print("HHHH&www", depth_est.size())
-    #print("AUTEREEE", depth_gt.size(), mask.size())
-    #print("ground truth", depth_gt.flatten().size())
-    #print("mask", mask.size())
-    #print("maskbool", mask.bool().size())
-    maskgt = mask > 0.5
-    #print("whyyyyynoooot",mask.size())
-    mask_gt = depth_gt[mask.bool()]
-    mask2 = depth_gt[maskgt]
-    #print("masked_ground truth", mask_gt.size())
-    #print("masked_ground truth 2222222222222", mask2.size())
-    #print("depth_est", depth_est.flatten().size())
-    return F.l1_loss(depth_est, mask_gt)
+    bool_mask = mask.bool()
+    return F.l1_loss(depth_est[bool_mask], depth_gt[bool_mask])
