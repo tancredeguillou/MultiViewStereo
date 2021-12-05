@@ -14,3 +14,7 @@ conda env create -f env.yaml
 conda activate cv-mvs
 pip install plyfile open3d
 ```
+
+## Line Fitting
+
+<img width="400" alt="ransac" src="https://user-images.githubusercontent.com/47776895/144763238-cd0097bc-452c-4196-9ae8-25836b4ba011.png">
